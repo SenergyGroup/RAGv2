@@ -9,6 +9,7 @@ from .config import print_config, NAMESPACE
 from .retriever import retrieve, build_filter
 from .generator import generate_card_summaries
 from .needs import extract_needs, FALLBACK_RESPONSE
+from .candidates import multi_need_retrieve
 
 # Admin DS import (added in section 3)
 from .datastore import ds, require_admin
@@ -84,9 +85,15 @@ def needs(payload: NeedRequest):
     story = (payload.user_story or "").strip()
     print(f">>> [main] /needs called. Story length: {len(story)}")
     if not story:
-        return dict(FALLBACK_RESPONSE)
+        empty = dict(FALLBACK_RESPONSE)
+        empty["candidates"] = []
+        return empty
 
-    return extract_needs(story)
+    extracted = extract_needs(story)
+    candidates = multi_need_retrieve(story, extracted.get("needs"))
+    response = dict(extracted)
+    response["candidates"] = candidates
+    return response
 
 # ---------- Admin UI (section 3 will add the template and JS) ----------
 @app.get("/admin")
