@@ -1,0 +1,10 @@
+openai
+pinecone
+fastapi
+uvicorn
+python-dotenv
+pydantic
+dotenv
+jinja2
+python-multipart
+orjson

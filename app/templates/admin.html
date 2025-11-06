@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin — Data QA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/static/style.css" rel="stylesheet" />
+</head>
+<body>
+  <header class="hero">
+    <div class="shell">
+      <div class="brand"><div class="logo-dot"></div><span>Admin Console</span></div>
+      <h1 class="hero-title">Review & update resource records</h1>
+      <p class="hero-sub">Edits persist to <code>prepared_documents.jsonl</code> and <code>prepared_metadata.jsonl</code>, then re‑embed & upsert to Pinecone.</p>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="panel panel-glass">
+      <div class="panel-title">
+        <h2>Record <span id="rec-idx">0</span> / <span id="rec-total">0</span></h2>
+        <div class="muted">Reviewed: <span id="reviewed-count">0</span> • Dirty: <span id="dirty-count">0</span></div>
+      </div>
+
+      <div class="actions" style="flex-wrap:wrap">
+        <button id="prev-btn" class="btn">Prev</button>
+        <button id="next-btn" class="btn">Next</button>
+        <input id="jump" type="number" class="input" style="width:120px" placeholder="Jump to #" />
+        <button id="jump-btn" class="btn">Go</button>
+        <label class="switch" style="margin-left:auto">
+          <input id="reviewed" type="checkbox" /><span class="slider"></span>
+        </label>
+        <span class="muted">Mark reviewed</span>
+      </div>
+
+      <div class="results-grid">
+        <div class="result-card">
+          <div class="card-inner">
+            <div class="card-head"><h3 class="card-title">Metadata</h3></div>
+            <div class="meta-grid">
+              <div class="meta"><label>Resource ID</label><input id="rid" class="input" readonly /></div>
+              <div class="meta"><label>Resource name</label><input id="resource_name" class="input" /></div>
+              <div class="meta"><label>Organization</label><input id="organization_name" class="input" /></div>
+              <div class="meta"><label>Categories (comma separated)</label><input id="categories" class="input" /></div>
+              <div class="meta"><label>Fees/Cost</label><input id="fees" class="input" /></div>
+              <div class="meta"><label>Languages (comma separated)</label><input id="languages" class="input" /></div>
+              <div class="meta"><label>Hours (notes)</label><input id="hours_notes" class="input" /></div>
+              <div class="meta"><label>Street</label><input id="street" class="input" /></div>
+              <div class="meta"><label>City</label><input id="city" class="input" /></div>
+              <div class="meta"><label>State</label><input id="state" class="input" /></div>
+              <div class="meta"><label>ZIP</label><input id="zip_code" class="input" /></div>
+              <div class="meta"><label>County</label><input id="county" class="input" /></div>
+              <div class="meta"><label>Phone</label><input id="phone" class="input" /></div>
+              <div class="meta"><label>Website</label><input id="website" class="input" /></div>
+              <div class="meta"><label>Email</label><input id="email" class="input" /></div>
+              <div class="meta"><label>Last updated</label><input id="last_updated" class="input" /></div>
+              <div class="meta"><label>Source file</label><input id="source_file" class="input" /></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-card">
+          <div class="card-inner">
+            <div class="card-head"><h3 class="card-title">Embedded text</h3></div>
+            <textarea id="text" class="answer-box" style="min-height:220px" placeholder="Chunk text used for embedding"></textarea>
+            <div class="actions">
+              <button id="gen-text" class="btn btn-soft">Generate from fields</button>
+              <button id="save" class="btn btn-primary">Save this record</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:10px">
+        <button id="save-all" class="btn">Save ALL</button>
+        <button id="upsert-dirty" class="btn btn-primary">Re‑embed + Upsert (dirty)</button>
+        <button id="upsert-all" class="btn btn-soft">Re‑embed + Upsert (all)</button>
+        <span id="admin-status" class="status">Ready</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/admin.js"></script>
+</body>
+</html>
