@@ -8,6 +8,7 @@ from typing import Optional
 from .config import print_config, NAMESPACE
 from .retriever import retrieve, build_filter
 from .generator import generate_card_summaries
+from .needs import extract_needs, FALLBACK_RESPONSE
 
 # Admin DS import (added in section 3)
 from .datastore import ds, require_admin
@@ -42,6 +43,10 @@ class Ask(BaseModel):
     top_results: int = 5
     namespace: Optional[str] = None
 
+
+class NeedRequest(BaseModel):
+    user_story: str
+
 @app.get("/healthz")
 def healthz():
     print(">>> [main] /healthz called.")
@@ -72,6 +77,16 @@ def ask(payload: Ask):
         r["model_summary"] = summaries.get(rid, "")
 
     return {"results": to_show, "counts": {"retrieved": len(hits), "shown": shown}}
+
+
+@app.post("/needs")
+def needs(payload: NeedRequest):
+    story = (payload.user_story or "").strip()
+    print(f">>> [main] /needs called. Story length: {len(story)}")
+    if not story:
+        return dict(FALLBACK_RESPONSE)
+
+    return extract_needs(story)
 
 # ---------- Admin UI (section 3 will add the template and JS) ----------
 @app.get("/admin")
