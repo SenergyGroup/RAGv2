@@ -7,8 +7,9 @@ from typing import Optional
 
 from .config import print_config, NAMESPACE
 from .retriever import retrieve, build_filter
-from .generator import generate_card_summaries
+from .generator import generate_card_summaries, generate_action_plan
 from .needs import extract_needs, FALLBACK_RESPONSE
+from .candidates import multi_need_retrieve
 
 # Admin DS import (added in section 3)
 from .datastore import ds, require_admin
@@ -60,23 +61,88 @@ def ask(payload: Ask):
         language=payload.language, free_only=payload.free_only
     )
 
-    hits = retrieve(payload.query, top_k=payload.top_k, metadata_filters=filt, namespace=payload.namespace)
-    if not hits:
-        print(">>> [main] No matches found.")
-        return {"results": [], "counts": {"retrieved": 0, "shown": 0}}
+    story = (payload.query or "").strip()
 
-    # Bound the number of cards we display by both top_results and top_k
-    shown = max(1, min(payload.top_results, payload.top_k, len(hits)))
-    to_show = hits[:shown]
-    print(f">>> [main] Displaying {shown} of {len(hits)} retrieved results.")
+    if not story:
+        print(">>> [main] Empty query provided.")
+        return {
+            "action_plan": "",
+            "grouped_results": {},
+            "counts": {"total_results": 0, "needs": 0},
+        }
 
-    # Generate per-card summaries for items we actually show
-    summaries = generate_card_summaries(payload.query, to_show)
-    for r in to_show:
-        rid = (r.get("id") or (r.get("metadata") or {}).get("resource_id") or "")
-        r["model_summary"] = summaries.get(rid, "")
+    extracted = extract_needs(story)
+    needs = extracted.get("needs") if isinstance(extracted, dict) else []
 
-    return {"results": to_show, "counts": {"retrieved": len(hits), "shown": shown}}
+    retrieve_kwargs = {
+        "metadata_filters": filt,
+        "namespace": payload.namespace,
+    }
+
+    display_limit = max(1, min(max(payload.top_results, 3), 5))
+
+    grouped_results = multi_need_retrieve(
+        story,
+        needs,
+        retrieve_fn=retrieve,
+        full_top_k=payload.top_k,
+        per_need_top_k=payload.top_k,
+        max_candidates=max(payload.top_k, payload.top_results),
+        retrieve_kwargs=retrieve_kwargs,
+        grouped_top_k=display_limit,
+    )
+
+    total_results = sum(len(v or []) for v in grouped_results.values())
+    if total_results == 0:
+        print(">>> [main] No matches found after fanout search.")
+        response = {
+            "action_plan": "",
+            "grouped_results": grouped_results,
+            "counts": {"total_results": 0, "needs": len(grouped_results)},
+            "needs": extracted,
+        }
+        return response
+
+    def _resource_identifier(resource: dict) -> str:
+        metadata = resource.get("metadata") or {}
+        rid = (
+            resource.get("id")
+            or metadata.get("resource_id")
+            or resource.get("service_id")
+        )
+        if rid:
+            rid_str = str(rid)
+            if not resource.get("id"):
+                resource["id"] = rid_str
+            return rid_str
+        return ""
+
+    unique_resources = []
+    seen_ids = set()
+    for resources in grouped_results.values():
+        for resource in resources or []:
+            rid = _resource_identifier(resource)
+            if rid and rid in seen_ids:
+                continue
+            if rid:
+                seen_ids.add(rid)
+            unique_resources.append(resource)
+
+    summaries = generate_card_summaries(story, unique_resources)
+    for resources in grouped_results.values():
+        for resource in resources or []:
+            rid = _resource_identifier(resource)
+            resource["model_summary"] = summaries.get(rid, "") if rid else ""
+
+    action_plan = generate_action_plan(story, grouped_results)
+
+    response = {
+        "action_plan": action_plan,
+        "grouped_results": grouped_results,
+        "counts": {"total_results": total_results, "needs": len(grouped_results)},
+        "needs": extracted,
+    }
+    return response
 
 
 @app.post("/needs")
@@ -84,9 +150,15 @@ def needs(payload: NeedRequest):
     story = (payload.user_story or "").strip()
     print(f">>> [main] /needs called. Story length: {len(story)}")
     if not story:
-        return dict(FALLBACK_RESPONSE)
+        empty = dict(FALLBACK_RESPONSE)
+        empty["candidates"] = []
+        return empty
 
-    return extract_needs(story)
+    extracted = extract_needs(story)
+    candidates = multi_need_retrieve(story, extracted.get("needs"))
+    response = dict(extracted)
+    response["candidates"] = candidates
+    return response
 
 # ---------- Admin UI (section 3 will add the template and JS) ----------
 @app.get("/admin")

@@ -75,7 +75,13 @@ def _call_model(messages: List[Dict[str, str]], schema: Dict) -> str:
     response = _client.responses.create(
         model=GEN_MODEL,
         input=messages,
-        response_format={"type": "json_schema", "json_schema": schema},
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": schema["name"],
+                "schema": schema["schema"] 
+            }
+        },
     )
     return response.output_text
 

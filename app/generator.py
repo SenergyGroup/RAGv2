@@ -72,7 +72,13 @@ def generate_card_summaries(user_query: str, retrieved: List[Dict]) -> Dict[str,
                 {"role":"system","content":SYSTEM_PROMPT},
                 {"role":"user","content": f"User question: {user_query}\nItems JSON:\n{json.dumps(items, ensure_ascii=False)}\n{prompt}"}
             ],
-            response_format={ "type":"json_schema", "json_schema": schema },
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": schema["name"],
+                    "schema": schema["schema"] # <-- THIS IS CORRECT
+                }
+            },
         )
         data = json.loads(resp.output_text)
         summaries = {str(c["id"]): c["summary"].strip() for c in data.get("cards", []) if c.get("id")}
@@ -97,4 +103,97 @@ def generate_card_summaries(user_query: str, retrieved: List[Dict]) -> Dict[str,
             summaries[mid] = " ".join([b for b in bits if b]).strip()
 
     return summaries
+
+
+def generate_action_plan(user_query: str, grouped_results: Dict[str, List[Dict]]) -> str:
+    """Return a short narrative action plan grounded in the grouped results."""
+
+    story = (user_query or "").strip()
+    if not story or not grouped_results:
+        return ""
+
+    print(">>> [generator] Generating action plan narrative...")
+
+    plan_payload = []
+    for slug, resources in grouped_results.items():
+        label = str(slug or "support options").replace("-", " ").title()
+        entries = []
+        for resource in (resources or [])[:3]:
+            md = resource.get("metadata") or {}
+            rid = (
+                md.get("resource_id")
+                or resource.get("id")
+                or resource.get("match_id")
+                or ""
+            )
+            entries.append({
+                "id": str(rid or ""),
+                "name": md.get("resource_name") or resource.get("name") or "",
+                "organization": md.get("organization_name") or "",
+                "summary": resource.get("model_summary") or "",
+                "categories": md.get("categories") or [],
+            })
+        plan_payload.append({"need": slug, "label": label, "resources": entries})
+
+    prompt = (
+        "Write a compassionate, empowering action plan for the person described in the user story. "
+        "Use two to three paragraphs. The first paragraph should acknowledge their situation. "
+        "Subsequent paragraph(s) should suggest concrete next steps, referencing the kinds of resources available "
+        "for each need (e.g., food pantries, rental assistance). Stay factual and concise. Whenever you mention a "
+        "specific resource or organization from the provided JSON, include the citation marker [cite: RESOURCE_ID] "
+        "immediately after the mention, using the resource's `id` value. If an item has an empty id, describe it "
+        "without a citation."
+    )
+
+    try:
+        resp = client.responses.create(
+            model=GEN_MODEL,
+            input=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": (
+                        f"User story: {story}\n"
+                        f"Grouped results JSON: {json.dumps(plan_payload, ensure_ascii=False)}\n"
+                        f"{prompt}"
+                    ),
+                },
+            ],
+        )
+        text = resp.output_text.strip()
+        if text:
+            return text
+    except Exception as exc:
+        print(">>> [generator] Failed to generate action plan:", exc)
+
+    print(">>> [generator] Using fallback action plan narrative.")
+
+    parts = [
+        "We understand your situation and are here to help connect you with nearby support.",
+    ]
+    for entry in plan_payload:
+        resources = entry.get("resources") or []
+        if not resources:
+            continue
+        need_label = str(entry.get("label") or entry.get("need") or "this need").replace("-", " ")
+        names = [r.get("name") for r in resources if r.get("name")]
+        categories = []
+        for r in resources:
+            cats = r.get("categories") or []
+            if isinstance(cats, list):
+                categories.extend([c for c in cats if isinstance(c, str)])
+        cat_fragment = ", ".join(sorted(set(categories)))
+        if names:
+            parts.append(
+                f"For {need_label}, consider reaching out to resources such as "
+                f"{', '.join(names[:2])}."
+            )
+        elif cat_fragment:
+            parts.append(
+                f"For {need_label}, there are options offering {cat_fragment}."
+            )
+    parts.append(
+        "Please contact these organizations to confirm details like hours, eligibility, and availability."
+    )
+    return "\n\n".join(parts)
 

@@ -97,6 +97,11 @@
         </div>
       </div>
 
+      <div id="action-plan" class="action-plan" hidden>
+        <h3>Action Plan</h3>
+        <div id="action-plan-body" class="action-plan-body"></div>
+      </div>
+
       <div id="results" class="results-grid" aria-live="polite"></div>
       <div id="empty-state" class="empty-state" hidden>
         <div class="empty-illustration"></div>
@@ -110,6 +115,11 @@
     <span>Pinecone index: <strong>community-resources</strong></span>
     <span>Built with ❤️ using OpenAI + Pinecone</span>
   </footer>
+
+  <div id="loading-overlay" class="loading-overlay" hidden aria-live="assertive" aria-busy="true">
+    <div class="spinner" role="status" aria-label="Loading"></div>
+    <p>Preparing your action plan…</p>
+  </div>
 
   <!-- Toast -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

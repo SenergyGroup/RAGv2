@@ -28,7 +28,9 @@ class NeedsExtractionTests(unittest.TestCase):
     def test_empty_story_returns_empty(self):
         request = NeedRequest(user_story="   ")
         response = needs_endpoint(request)
-        self.assertEqual(response, FALLBACK_RESPONSE)
+        expected = dict(FALLBACK_RESPONSE)
+        expected["candidates"] = []
+        self.assertEqual(response, expected)
 
     def test_malformed_json_is_handled(self):
         def stub_fetcher(messages, schema):
