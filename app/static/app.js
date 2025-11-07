@@ -33,17 +33,61 @@ function slugToTitle(slug){
   return slug.split("-").map(part=>part ? part[0].toUpperCase()+part.slice(1) : "").join(" ").trim();
 }
 
+const resourceIndex = {};
+
+function resetResourceIndex(){
+  Object.keys(resourceIndex).forEach(key=>{ delete resourceIndex[key]; });
+}
+
+function updateResourceIndex(){
+  resetResourceIndex();
+  document.querySelectorAll(".result-card[data-id]").forEach(card=>{
+    const id = card.getAttribute("data-id");
+    if(!id) return;
+    const title = card.querySelector(".card-title");
+    resourceIndex[id] = {
+      name: (title?.textContent || `Resource ${id}`).trim(),
+      element: card
+    };
+  });
+}
+
+function escapeHTML(str=""){
+  return String(str).replace(/[&<>"']/g, ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[ch]);
+}
+
+function attachCitationHandlers(){
+  document.querySelectorAll(".cite-link").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-id");
+      if(!id) return;
+      const info = resourceIndex[id];
+      if(!info || !info.element) return;
+      info.element.scrollIntoView({behavior:"smooth", block:"center"});
+      info.element.classList.add("highlighted");
+      setTimeout(()=>info.element.classList.remove("highlighted"), 1600);
+    });
+  });
+}
+
 function renderActionPlan(text){
   const section=q("action-plan");
   const body=q("action-plan-body");
   if(!section || !body) return;
   const value=(text||"").trim();
   if(value){
+    const escaped = escapeHTML(value);
+    const withCites = escaped.replace(/\[cite:\s*([^\]\s]+)\]/g, (_, id)=>{
+      const label = resourceIndex[id]?.name || `Resource ${id}`;
+      return `<button type="button" class="cite-link" data-id="${id}">[${escapeHTML(label)}]</button>`;
+    });
+    const paragraphs = withCites.split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,"<br>")}</p>`).join("");
     section.hidden=false;
-    body.textContent=value;
+    body.innerHTML=paragraphs;
+    attachCitationHandlers();
   }else{
     section.hidden=true;
-    body.textContent="";
+    body.innerHTML="";
   }
 }
 
@@ -53,6 +97,7 @@ function renderActionPlan(text){
    ========================== */
 function renderSkeleton(n=3){
   renderActionPlan("");
+  resetResourceIndex();
   q("results").innerHTML = Array.from({length:n}).map(()=>`<div class="result-skeleton skeleton"></div>`).join("");
 }
 function renderEmpty(){
@@ -60,6 +105,7 @@ function renderEmpty(){
   q("empty-state").hidden=false;
   q("results-count").textContent="";
   renderActionPlan("");
+  resetResourceIndex();
 }
 
 function renderResourceCard(h){
@@ -164,6 +210,7 @@ function renderGroupedResults(grouped){
 
   results.innerHTML = sections.join("");
   attachCopyHandlers();
+  updateResourceIndex();
 }
 
 /* ==========================
@@ -172,6 +219,7 @@ function renderGroupedResults(grouped){
 async function onSubmit(e){
   e.preventDefault();
   const status=q("status"), btn=q("submit-btn");
+  const overlay = q("loading-overlay");
   const payload={
     query:q("query").value||"",
     city:q("city").value||null,
@@ -185,6 +233,7 @@ async function onSubmit(e){
 
   status.textContent="Searching…";
   btn.disabled=true; q("mini-indicator").hidden=false;
+  if(overlay) overlay.hidden=false;
   renderSkeleton(3);
 
   try{
@@ -210,6 +259,7 @@ async function onSubmit(e){
   }finally{
     q("mini-indicator").hidden=true;
     btn.disabled=false;
+    if(overlay) overlay.hidden=true;
   }
 }
 

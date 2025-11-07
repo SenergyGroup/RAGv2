@@ -120,7 +120,14 @@ def generate_action_plan(user_query: str, grouped_results: Dict[str, List[Dict]]
         entries = []
         for resource in (resources or [])[:3]:
             md = resource.get("metadata") or {}
+            rid = (
+                md.get("resource_id")
+                or resource.get("id")
+                or resource.get("match_id")
+                or ""
+            )
             entries.append({
+                "id": str(rid or ""),
                 "name": md.get("resource_name") or resource.get("name") or "",
                 "organization": md.get("organization_name") or "",
                 "summary": resource.get("model_summary") or "",
@@ -132,7 +139,10 @@ def generate_action_plan(user_query: str, grouped_results: Dict[str, List[Dict]]
         "Write a compassionate, empowering action plan for the person described in the user story. "
         "Use two to three paragraphs. The first paragraph should acknowledge their situation. "
         "Subsequent paragraph(s) should suggest concrete next steps, referencing the kinds of resources available "
-        "for each need (e.g., food pantries, rental assistance). Stay factual and concise."
+        "for each need (e.g., food pantries, rental assistance). Stay factual and concise. Whenever you mention a "
+        "specific resource or organization from the provided JSON, include the citation marker [cite: RESOURCE_ID] "
+        "immediately after the mention, using the resource's `id` value. If an item has an empty id, describe it "
+        "without a citation."
     )
 
     try:
