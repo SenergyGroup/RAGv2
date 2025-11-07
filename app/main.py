@@ -7,7 +7,7 @@ from typing import Optional
 
 from .config import print_config, NAMESPACE
 from .retriever import retrieve, build_filter
-from .generator import generate_card_summaries
+from .generator import generate_card_summaries, generate_action_plan
 from .needs import extract_needs, FALLBACK_RESPONSE
 from .candidates import multi_need_retrieve
 
@@ -62,10 +62,14 @@ def ask(payload: Ask):
     )
 
     story = (payload.query or "").strip()
-    
+
     if not story:
         print(">>> [main] Empty query provided.")
-        return {"results": [], "counts": {"retrieved": 0, "shown": 0}}
+        return {
+            "action_plan": "",
+            "grouped_results": {},
+            "counts": {"total_results": 0, "needs": 0},
+        }
 
     extracted = extract_needs(story)
     needs = extracted.get("needs") if isinstance(extracted, dict) else []
@@ -75,7 +79,9 @@ def ask(payload: Ask):
         "namespace": payload.namespace,
     }
 
-    candidates = multi_need_retrieve(
+    display_limit = max(1, min(max(payload.top_results, 3), 5))
+
+    grouped_results = multi_need_retrieve(
         story,
         needs,
         retrieve_fn=retrieve,
@@ -83,27 +89,59 @@ def ask(payload: Ask):
         per_need_top_k=payload.top_k,
         max_candidates=max(payload.top_k, payload.top_results),
         retrieve_kwargs=retrieve_kwargs,
+        grouped_top_k=display_limit,
     )
 
-    if not candidates:
+    total_results = sum(len(v or []) for v in grouped_results.values())
+    if total_results == 0:
         print(">>> [main] No matches found after fanout search.")
-        response = {"results": [], "counts": {"retrieved": 0, "shown": 0}}
-        response["needs"] = extracted
+        response = {
+            "action_plan": "",
+            "grouped_results": grouped_results,
+            "counts": {"total_results": 0, "needs": len(grouped_results)},
+            "needs": extracted,
+        }
         return response
 
-    # Bound the number of cards we display by both top_results and top_k
-    shown = max(1, min(payload.top_results, payload.top_k, len(candidates)))
-    to_show = candidates[:shown]
-    print(f">>> [main] Displaying {shown} of {len(candidates)} retrieved results.")
+    def _resource_identifier(resource: dict) -> str:
+        metadata = resource.get("metadata") or {}
+        rid = (
+            resource.get("id")
+            or metadata.get("resource_id")
+            or resource.get("service_id")
+        )
+        if rid:
+            rid_str = str(rid)
+            if not resource.get("id"):
+                resource["id"] = rid_str
+            return rid_str
+        return ""
 
-    # Generate per-card summaries for items we actually show
-    summaries = generate_card_summaries(story, to_show)
-    for r in to_show:
-        rid = (r.get("id") or (r.get("metadata") or {}).get("resource_id") or "")
-        r["model_summary"] = summaries.get(rid, "")
+    unique_resources = []
+    seen_ids = set()
+    for resources in grouped_results.values():
+        for resource in resources or []:
+            rid = _resource_identifier(resource)
+            if rid and rid in seen_ids:
+                continue
+            if rid:
+                seen_ids.add(rid)
+            unique_resources.append(resource)
 
-    response = {"results": to_show, "counts": {"retrieved": len(candidates), "shown": shown}}
-    response["needs"] = extracted
+    summaries = generate_card_summaries(story, unique_resources)
+    for resources in grouped_results.values():
+        for resource in resources or []:
+            rid = _resource_identifier(resource)
+            resource["model_summary"] = summaries.get(rid, "") if rid else ""
+
+    action_plan = generate_action_plan(story, grouped_results)
+
+    response = {
+        "action_plan": action_plan,
+        "grouped_results": grouped_results,
+        "counts": {"total_results": total_results, "needs": len(grouped_results)},
+        "needs": extracted,
+    }
     return response
 
 

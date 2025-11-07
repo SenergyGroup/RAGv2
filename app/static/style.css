@@ -170,7 +170,45 @@ body{
 }
 
 /* Results */
-.results-grid{ display:grid; gap:14px; }
+.results-grid{ display:grid; gap:24px; }
+.action-plan{
+  border:1px solid #2a386a;
+  border-radius: var(--radius);
+  padding:16px;
+  margin-bottom:16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  box-shadow: var(--shadow-md);
+}
+.action-plan h3{
+  margin:0 0 10px;
+  font-size:1rem;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  color:#d6defa;
+}
+.action-plan-body{
+  white-space:pre-line;
+  line-height:1.5;
+  color:#dfe6ff;
+}
+.need-section{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.need-heading{
+  margin:0;
+  font-size:1.05rem;
+  font-weight:700;
+  color:#e0e7ff;
+}
+.need-results{
+  display:grid;
+  gap:14px;
+}
+.no-results-msg{
+  margin:0;
+}
 .result-card{
   border: 1px solid #2a386a; border-radius: var(--radius); overflow:hidden;
   background:

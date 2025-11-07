@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Set
 
 from .retriever import retrieve
 
 DEFAULT_FULL_TOP_K = 10
 DEFAULT_PER_NEED_TOP_K = 10
+DEFAULT_GROUPED_RESULTS_PER_NEED = 5
 MAX_NEEDS = 3
 STORY_SLICE_CHARS = 200
 MAX_CANDIDATES = 50
@@ -109,20 +110,16 @@ def multi_need_retrieve(
     per_need_limit: int = MAX_NEEDS,
     max_candidates: int = MAX_CANDIDATES,
     retrieve_kwargs: Optional[Dict[str, object]] = None,
-) -> List[Dict[str, object]]:
+    grouped_top_k: Optional[int] = None,
+) -> Dict[str, List[Dict[str, object]]]:
     """Run vector searches for the full story and optionally each need."""
 
     story_query = (user_story or "").strip()
     if not story_query:
-        return []
+        return {}
 
     buckets: Dict[str, Dict[str, object]] = {}
 
-    retrieve_opts = dict(retrieve_kwargs or {})
-
-    full_hits = retrieve_fn(story_query, top_k=full_top_k, **retrieve_opts)
-
-    # Always run full story search
     retrieve_opts = dict(retrieve_kwargs or {})
 
     full_hits = retrieve_fn(story_query, top_k=full_top_k, **retrieve_opts)
@@ -131,8 +128,16 @@ def multi_need_retrieve(
             _add_hit(buckets, hit)
 
     needs = list(needs or [])
+    grouped_limit = max(
+        1, int(grouped_top_k) if grouped_top_k else DEFAULT_GROUPED_RESULTS_PER_NEED
+    )
+
     if not needs:
-        return _finalize_candidates(buckets, max_candidates)
+        candidates = _finalize_candidates(buckets, max_candidates)
+        limit = min(grouped_limit, len(candidates))
+        if limit == 0:
+            return {}
+        return {"general": candidates[:limit]}
 
     context_slice = _story_slice(user_story)
     for need in needs[:per_need_limit]:
@@ -150,7 +155,8 @@ def multi_need_retrieve(
             if isinstance(hit, dict):
                 _add_hit(buckets, hit, matched_need=slug or None)
 
-    return _finalize_candidates(buckets, max_candidates)
+    candidates = _finalize_candidates(buckets, max_candidates)
+    return _group_candidates_by_need(candidates, needs, grouped_limit)
 
 
 def _finalize_candidates(
@@ -175,3 +181,68 @@ def _finalize_candidates(
 
     candidates.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
     return candidates[:max_candidates]
+
+
+def _group_candidates_by_need(
+    candidates: Sequence[Dict[str, object]],
+    needs: Sequence[Need],
+    per_need_limit: int,
+) -> Dict[str, List[Dict[str, object]]]:
+    per_need_limit = max(1, int(per_need_limit or DEFAULT_GROUPED_RESULTS_PER_NEED))
+    groups: Dict[str, List[Dict[str, object]]] = {}
+    seen: Dict[str, Set[str]] = {}
+
+    ordered_needs: List[str] = []
+    for need in needs:
+        if not isinstance(need, dict):
+            continue
+        slug = (need.get("slug") or "").strip()
+        if not slug:
+            continue
+        if slug not in groups:
+            groups[slug] = []
+            seen[slug] = set()
+            ordered_needs.append(slug)
+
+    if not ordered_needs:
+        limit = min(per_need_limit, len(candidates))
+        if limit == 0:
+            return {}
+        return {"general": list(candidates[:limit])}
+
+    unmatched: List[Dict[str, object]] = []
+
+    for candidate in candidates:
+        matched_needs = [
+            slug for slug in candidate.get("matched_needs", []) if slug in groups
+        ]
+        service_id = str(candidate.get("service_id") or candidate.get("id") or "")
+
+        if matched_needs:
+            for slug in matched_needs:
+                if len(groups[slug]) >= per_need_limit:
+                    continue
+                if service_id and service_id in seen[slug]:
+                    continue
+                groups[slug].append(candidate)
+                if service_id:
+                    seen[slug].add(service_id)
+        else:
+            unmatched.append(candidate)
+
+    for candidate in unmatched:
+        service_id = str(candidate.get("service_id") or candidate.get("id") or "")
+        for slug in ordered_needs:
+            if len(groups[slug]) >= per_need_limit:
+                continue
+            if service_id and service_id in seen[slug]:
+                continue
+            groups[slug].append(candidate)
+            if service_id:
+                seen[slug].add(service_id)
+            break
+
+    for slug in ordered_needs:
+        groups.setdefault(slug, [])
+
+    return groups

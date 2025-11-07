@@ -28,76 +28,114 @@ function icon(name, color="%23dfe6ff"){
 }
 function showToast(msg){ const el=q("toast"); el.textContent=msg; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),1600); }
 
+function slugToTitle(slug){
+  if(!slug) return "Recommended Resources";
+  return slug.split("-").map(part=>part ? part[0].toUpperCase()+part.slice(1) : "").join(" ").trim();
+}
+
+function renderActionPlan(text){
+  const section=q("action-plan");
+  const body=q("action-plan-body");
+  if(!section || !body) return;
+  const value=(text||"").trim();
+  if(value){
+    section.hidden=false;
+    body.textContent=value;
+  }else{
+    section.hidden=true;
+    body.textContent="";
+  }
+}
+
 
 /* ==========================
    Rendering
    ========================== */
-function renderSkeleton(n=3){ q("results").innerHTML = Array.from({length:n}).map(()=>`<div class="result-skeleton skeleton"></div>`).join(""); }
-function renderEmpty(){ q("results").innerHTML=""; q("empty-state").hidden=false; q("results-count").textContent=""; }
-function renderResults(hits){
-  const results=q("results"); q("empty-state").hidden=true;
-  results.innerHTML = hits.map((h,idx)=>{
-    const md=h.metadata||{};
-    const name=val(md.resource_name), org=val(md.organization_name,"—");
-    const cats=Array.isArray(md.categories)?md.categories:[], langs=Array.isArray(md.languages)?md.languages:[];
-    const fees=val(md.fees,"—"), hours=val(md.hours_notes||(md.hours&&md.hours.notes),"—");
-    const addr=addressFrom(md), phone=val(md.phone,""), website=val(md.website,""), email=val(md.email,"");
-    const lastUpdated=val(md.last_updated,"—"), county=val(md.county,"—"), city=val(md.city,"—"), zip=val(md.zip_code,"—");
-    const score=h.score?.toFixed?.(3)??"—";
-    const phoneHref=telHref(phone), mapHref=mapsHref(addr), webHref=website&&website!=="Not provided"?website:null;
-    const detailText=val(md.text,"—");
-    const summary = val(h.model_summary, "—"); // NEW: per-card summary from backend
+function renderSkeleton(n=3){
+  renderActionPlan("");
+  q("results").innerHTML = Array.from({length:n}).map(()=>`<div class="result-skeleton skeleton"></div>`).join("");
+}
+function renderEmpty(){
+  q("results").innerHTML="";
+  q("empty-state").hidden=false;
+  q("results-count").textContent="";
+  renderActionPlan("");
+}
 
-    return `
-      <article class="result-card" data-id="${md.resource_id||''}">
-        <div class="card-inner">
-          <div class="card-head">
-            <div>
-              <h3 class="card-title">${name}</h3>
-              <p class="card-sub">${org}</p>
-            </div>
-            <div class="small">score ${score}</div>
+function renderResourceCard(h){
+  const md=h.metadata||{};
+  const name=val(md.resource_name);
+  const org=val(md.organization_name,"—");
+  const cats=Array.isArray(md.categories)?md.categories:[];
+  const langs=Array.isArray(md.languages)?md.languages:[];
+  const fees=val(md.fees,"—");
+  const hours=val(md.hours_notes||(md.hours&&md.hours.notes),"—");
+  const addr=addressFrom(md);
+  const phone=val(md.phone,"");
+  const website=val(md.website,"");
+  const email=val(md.email,"");
+  const lastUpdated=val(md.last_updated,"—");
+  const county=val(md.county,"—");
+  const city=val(md.city,"—");
+  const zip=val(md.zip_code,"—");
+  const score=h.score?.toFixed?.(3)??"—";
+  const phoneHref=telHref(phone);
+  const mapHref=mapsHref(addr);
+  const webHref=website&&website!=="Not provided"?website:null;
+  const detailText=val(md.text,"—");
+  const summary = val(h.model_summary, "—");
+
+  return `
+    <article class="result-card" data-id="${md.resource_id||''}">
+      <div class="card-inner">
+        <div class="card-head">
+          <div>
+            <h3 class="card-title">${name}</h3>
+            <p class="card-sub">${org}</p>
           </div>
-
-          <p class="card-summary">${summary}</p>
-
-          <div class="badges">
-            ${cats.map(c=>`<span class="badge">${c}</span>`).join("")}
-            ${langs.map(l=>`<span class="badge lang">${l}</span>`).join("")}
-          </div>
-
-          <div class="meta-grid">
-            <div class="meta"><label>Address</label><div>${addr}</div></div>
-            <div class="meta"><label>Hours</label><div>${hours}</div></div>
-            <div class="meta"><label>Cost / Fees</label><div>${fees}</div></div>
-          </div>
-
-          <div class="actions-row">
-            ${phoneHref?`<a class="action" href="${phoneHref}">${icon('phone')}Call</a>`:""}
-            ${webHref?`<a class="action" href="${webHref}" target="_blank" rel="noopener">${icon('globe')}Website</a>`:""}
-            ${mapHref?`<a class="action" href="${mapHref}" target="_blank" rel="noopener">${icon('map')}Map</a>`:""}
-            ${email&&email!=="Not provided"?`<a class="action" href="mailto:${email}">${icon('mail')}Email</a>`:""}
-            <button class="action copy" data-copy="${addr}">${icon('copy')}Copy address</button>
-            ${phone&&phone!=="Not provided"?`<button class="action copy" data-copy="${phone}">${icon('copy')}Copy phone</button>`:""}
-          </div>
-
-          <div class="split" style="margin-top:10px;">
-            <div class="small">City ${city} • County ${county} • ZIP ${zip}</div>
-            <div class="small">Last updated ${lastUpdated}</div>
-          </div>
-
-          <details style="margin-top:10px;">
-            <summary style="cursor:pointer">More details (embedded text)</summary>
-            <div class="meta" style="margin-top:8px;">
-              <label>Text used for embedding</label>
-              <div style="white-space:pre-wrap">${detailText}</div>
-            </div>
-          </details>
+          <div class="small">score ${score}</div>
         </div>
-      </article>
-    `;
-  }).join("");
 
+        <p class="card-summary">${summary}</p>
+
+        <div class="badges">
+          ${cats.map(c=>`<span class="badge">${c}</span>`).join("")}
+          ${langs.map(l=>`<span class="badge lang">${l}</span>`).join("")}
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta"><label>Address</label><div>${addr}</div></div>
+          <div class="meta"><label>Hours</label><div>${hours}</div></div>
+          <div class="meta"><label>Cost / Fees</label><div>${fees}</div></div>
+        </div>
+
+        <div class="actions-row">
+          ${phoneHref?`<a class="action" href="${phoneHref}">${icon('phone')}Call</a>`:""}
+          ${webHref?`<a class="action" href="${webHref}" target="_blank" rel="noopener">${icon('globe')}Website</a>`:""}
+          ${mapHref?`<a class="action" href="${mapHref}" target="_blank" rel="noopener">${icon('map')}Map</a>`:""}
+          ${email&&email!=="Not provided"?`<a class="action" href="mailto:${email}">${icon('mail')}Email</a>`:""}
+          <button class="action copy" data-copy="${addr}">${icon('copy')}Copy address</button>
+          ${phone&&phone!=="Not provided"?`<button class="action copy" data-copy="${phone}">${icon('copy')}Copy phone</button>`:""}
+        </div>
+
+        <div class="split" style="margin-top:10px;">
+          <div class="small">City ${city} • County ${county} • ZIP ${zip}</div>
+          <div class="small">Last updated ${lastUpdated}</div>
+        </div>
+
+        <details style="margin-top:10px;">
+          <summary style="cursor:pointer">More details (embedded text)</summary>
+          <div class="meta" style="margin-top:8px;">
+            <label>Text used for embedding</label>
+            <div style="white-space:pre-wrap">${detailText}</div>
+          </div>
+        </details>
+      </div>
+    </article>
+  `;
+}
+
+function attachCopyHandlers(){
   document.querySelectorAll(".action.copy").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const text = btn.getAttribute("data-copy") || "";
@@ -105,6 +143,27 @@ function renderResults(hits){
       navigator.clipboard.writeText(text).then(()=> showToast("Copied to clipboard"));
     });
   });
+}
+
+function renderGroupedResults(grouped){
+  const results=q("results");
+  q("empty-state").hidden=true;
+
+  const sections = Object.entries(grouped||{}).map(([slug, hits])=>{
+    const cards = Array.isArray(hits) && hits.length
+      ? hits.map(renderResourceCard).join("")
+      : `<p class="muted no-results-msg">No resources matched yet.</p>`;
+    const heading = slug==="general" ? "Recommended Resources" : slugToTitle(slug);
+    return `
+      <section class="need-section">
+        <h3 class="need-heading">${heading}</h3>
+        <div class="need-results">${cards}</div>
+      </section>
+    `;
+  });
+
+  results.innerHTML = sections.join("");
+  attachCopyHandlers();
 }
 
 /* ==========================
@@ -132,13 +191,18 @@ async function onSubmit(e){
     const res=await fetch("/ask",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
     if(!res.ok){ status.textContent=`Error ${res.status}`; renderEmpty(); showToast("Request failed."); return; }
     const data=await res.json();
-    const hits=Array.isArray(data.results)?data.results:[];
-    if(!hits.length){ renderEmpty(); } else {
-      renderResults(hits);
-      const shown=hits.length, retrieved=data.counts?.retrieved ?? shown;
-      q("results-count").textContent = `Showing ${shown} of ${retrieved}`;
+    const grouped=data.grouped_results||{};
+    const total=Object.values(grouped).reduce((acc,arr)=>acc + (Array.isArray(arr)?arr.length:0),0);
+    if(!total){
+      renderEmpty();
+    }else{
+      renderGroupedResults(grouped);
+      const needCount = Object.keys(grouped).length;
+      q("results-count").textContent = `${total} resources across ${needCount} need${needCount===1?"":"s"}`;
+      q("empty-state").hidden=true;
     }
-    status.textContent=`Done. ${hits.length} result(s).`;
+    renderActionPlan(data.action_plan||"");
+    status.textContent=`Done. ${total} resource(s).`;
   }catch(err){
     console.error(err);
     status.textContent="Error";
@@ -153,6 +217,7 @@ function onReset(){
   q("ask-form").reset();
   q("query").value=""; q("results").innerHTML=""; q("results-count").textContent="";
   q("empty-state").hidden=true; q("status").textContent="Ready";
+  renderActionPlan("");
 }
 function onExampleClick(e){ if(!e.target.classList.contains("ex")) return; q("query").value=e.target.textContent.trim(); q("query").focus(); }
 
