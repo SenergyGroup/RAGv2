@@ -72,7 +72,13 @@ def generate_card_summaries(user_query: str, retrieved: List[Dict]) -> Dict[str,
                 {"role":"system","content":SYSTEM_PROMPT},
                 {"role":"user","content": f"User question: {user_query}\nItems JSON:\n{json.dumps(items, ensure_ascii=False)}\n{prompt}"}
             ],
-            response_format={ "type":"json_schema", "json_schema": schema },
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": schema["name"],
+                    "schema": schema["schema"] # <-- THIS IS CORRECT
+                }
+            },
         )
         data = json.loads(resp.output_text)
         summaries = {str(c["id"]): c["summary"].strip() for c in data.get("cards", []) if c.get("id")}
