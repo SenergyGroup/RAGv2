@@ -51,6 +51,14 @@ def _coerce_score(hit: Hit) -> float:
         return 0.0
 
 
+def _copy_hit(hit: Hit) -> Hit:
+    """Return a shallow copy of the hit with metadata normalized to a dict."""
+    copied: Hit = dict(hit)
+    metadata = copied.get("metadata") if isinstance(copied.get("metadata"), dict) else {}
+    copied["metadata"] = dict(metadata)
+    return copied
+
+
 def _add_hit(
     bucket: Dict[str, Dict[str, object]],
     hit: Hit,
@@ -70,6 +78,7 @@ def _add_hit(
             "name": name,
             "matched_needs": set([matched_need]) if matched_need else set(),
             "score": score,
+            "hit": _copy_hit(hit),
         }
         return
 
@@ -79,8 +88,9 @@ def _add_hit(
     if matched_need:
         current["matched_needs"].add(matched_need)
 
-    if score > current["score"]:
+    if score >= current["score"]:
         current["score"] = score
+        current["hit"] = _copy_hit(hit)
 
 
 def multi_need_retrieve(
@@ -92,6 +102,7 @@ def multi_need_retrieve(
     per_need_top_k: int = DEFAULT_PER_NEED_TOP_K,
     per_need_limit: int = MAX_NEEDS,
     max_candidates: int = MAX_CANDIDATES,
+    retrieve_kwargs: Optional[Dict[str, object]] = None,
 ) -> List[Dict[str, object]]:
     """Run vector searches for the full story and optionally each need."""
 
@@ -102,7 +113,9 @@ def multi_need_retrieve(
     buckets: Dict[str, Dict[str, object]] = {}
 
     # Always run full story search
-    full_hits = retrieve_fn(story_query, top_k=full_top_k)
+    retrieve_opts = dict(retrieve_kwargs or {})
+
+    full_hits = retrieve_fn(story_query, top_k=full_top_k, **retrieve_opts)
     for hit in full_hits or []:
         if isinstance(hit, dict):
             _add_hit(buckets, hit)
@@ -122,7 +135,7 @@ def multi_need_retrieve(
         per_need_query = query
         if context_slice:
             per_need_query = f"{query} Context: {context_slice}"
-        hits = retrieve_fn(per_need_query, top_k=per_need_top_k)
+        hits = retrieve_fn(per_need_query, top_k=per_need_top_k, **retrieve_opts)
         for hit in hits or []:
             if isinstance(hit, dict):
                 _add_hit(buckets, hit, matched_need=slug or None)
@@ -138,10 +151,18 @@ def _finalize_candidates(
     for entry in buckets.values():
         matched = entry.get("matched_needs", set())
         if isinstance(matched, set):
-            entry["matched_needs"] = sorted(matched)
+            matched_list = sorted(matched)
         else:
-            entry["matched_needs"] = []
-        candidates.append(entry)
+            matched_list = []
+
+        hit = entry.get("hit") if isinstance(entry.get("hit"), dict) else {}
+        candidate: Dict[str, object] = dict(hit)
+        candidate.setdefault("metadata", {})
+        candidate["service_id"] = entry.get("service_id")
+        candidate["name"] = entry.get("name", "")
+        candidate["score"] = entry.get("score", candidate.get("score", 0.0))
+        candidate["matched_needs"] = matched_list
+        candidates.append(candidate)
 
     candidates.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
     return candidates[:max_candidates]

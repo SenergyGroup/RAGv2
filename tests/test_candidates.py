@@ -22,7 +22,7 @@ class MultiNeedRetrieveTests(unittest.TestCase):
         calls = []
 
         def fake_retrieve(query, top_k=0, **kwargs):
-            calls.append((query, top_k))
+            calls.append((query, top_k, kwargs))
             return [
                 {"id": "svc-1", "score": 0.4, "metadata": {"service_id": "svc-1", "resource_name": "Alpha"}}
             ]
@@ -33,6 +33,7 @@ class MultiNeedRetrieveTests(unittest.TestCase):
         self.assertEqual(calls[0][0], "help with food")
         self.assertEqual(len(candidates), 1)
         self.assertEqual(candidates[0]["service_id"], "svc-1")
+        self.assertIn("metadata", candidates[0])
 
     def test_per_need_fanout_when_needs_present(self):
         multi_need_retrieve = self._import()
@@ -54,7 +55,7 @@ class MultiNeedRetrieveTests(unittest.TestCase):
         }
 
         def fake_retrieve(query, top_k=0, **kwargs):
-            calls.append(query)
+            calls.append((query, top_k, kwargs))
             return responses.get(query, [])
 
         needs = [
@@ -73,10 +74,10 @@ class MultiNeedRetrieveTests(unittest.TestCase):
             per_need_top_k=10,
         )
 
-        self.assertEqual(calls[0], "family needs food")
+        self.assertEqual(calls[0][0], "family needs food")
         per_need_calls = calls[1:]
         self.assertEqual(len(per_need_calls), 3)
-        self.assertTrue(all("Context:" in q for q in per_need_calls))
+        self.assertTrue(all("Context:" in q[0] for q in per_need_calls))
         self.assertEqual(len(candidates), 4)
 
     def test_dedupe_accumulates_matched_needs(self):
@@ -84,7 +85,7 @@ class MultiNeedRetrieveTests(unittest.TestCase):
         calls = []
 
         def fake_retrieve(query, top_k=0, **kwargs):
-            calls.append(query)
+            calls.append((query, kwargs))
             if query == "story":
                 return [
                     {"id": "svc-1", "score": 0.2, "metadata": {"service_id": "svc-1", "resource_name": "Alpha"}}
@@ -107,6 +108,29 @@ class MultiNeedRetrieveTests(unittest.TestCase):
         self.assertEqual(candidate["service_id"], "svc-1")
         self.assertEqual(candidate["matched_needs"], ["housing"])
         self.assertAlmostEqual(candidate["score"], 0.8)
+        self.assertEqual(candidate["metadata"].get("extra"), "x")
+
+    def test_retrieve_kwargs_forwarded(self):
+        multi_need_retrieve = self._import()
+
+        calls = []
+
+        def fake_retrieve(query, top_k=0, **kwargs):
+            calls.append(kwargs)
+            return []
+
+        multi_need_retrieve(
+            "story",
+            [],
+            retrieve_fn=fake_retrieve,
+            retrieve_kwargs={"metadata_filters": {"city": "Test"}, "namespace": "ns"},
+            full_top_k=2,
+            per_need_top_k=3,
+        )
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["metadata_filters"], {"city": "Test"})
+        self.assertEqual(calls[0]["namespace"], "ns")
 
 
 if __name__ == "__main__":

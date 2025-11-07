@@ -61,23 +61,49 @@ def ask(payload: Ask):
         language=payload.language, free_only=payload.free_only
     )
 
-    hits = retrieve(payload.query, top_k=payload.top_k, metadata_filters=filt, namespace=payload.namespace)
-    if not hits:
-        print(">>> [main] No matches found.")
+    story = (payload.query or "").strip()
+    if not story:
+        print(">>> [main] Empty query provided.")
         return {"results": [], "counts": {"retrieved": 0, "shown": 0}}
 
+    extracted = extract_needs(story)
+    needs = extracted.get("needs") if isinstance(extracted, dict) else []
+
+    retrieve_kwargs = {
+        "metadata_filters": filt,
+        "namespace": payload.namespace,
+    }
+
+    candidates = multi_need_retrieve(
+        story,
+        needs,
+        retrieve_fn=retrieve,
+        full_top_k=payload.top_k,
+        per_need_top_k=payload.top_k,
+        max_candidates=max(payload.top_k, payload.top_results),
+        retrieve_kwargs=retrieve_kwargs,
+    )
+
+    if not candidates:
+        print(">>> [main] No matches found after fanout search.")
+        response = {"results": [], "counts": {"retrieved": 0, "shown": 0}}
+        response["needs"] = extracted
+        return response
+
     # Bound the number of cards we display by both top_results and top_k
-    shown = max(1, min(payload.top_results, payload.top_k, len(hits)))
-    to_show = hits[:shown]
-    print(f">>> [main] Displaying {shown} of {len(hits)} retrieved results.")
+    shown = max(1, min(payload.top_results, payload.top_k, len(candidates)))
+    to_show = candidates[:shown]
+    print(f">>> [main] Displaying {shown} of {len(candidates)} retrieved results.")
 
     # Generate per-card summaries for items we actually show
-    summaries = generate_card_summaries(payload.query, to_show)
+    summaries = generate_card_summaries(story, to_show)
     for r in to_show:
         rid = (r.get("id") or (r.get("metadata") or {}).get("resource_id") or "")
         r["model_summary"] = summaries.get(rid, "")
 
-    return {"results": to_show, "counts": {"retrieved": len(hits), "shown": shown}}
+    response = {"results": to_show, "counts": {"retrieved": len(candidates), "shown": shown}}
+    response["needs"] = extracted
+    return response
 
 
 @app.post("/needs")
