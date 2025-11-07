@@ -164,10 +164,6 @@ def _finalize_candidates(
             matched_list = sorted(matched)
         else:
             matched_list = []
-<<<<<<< HEAD
-=======
-
->>>>>>> b01f04a1cb8e0c484734ef6cdb5ac7af8df0b201
         hit = entry.get("hit") if isinstance(entry.get("hit"), dict) else {}
         candidate: Dict[str, object] = dict(hit)
         candidate.setdefault("metadata", {})

@@ -6,17 +6,10 @@ from pydantic import BaseModel
 from typing import Optional
 
 from .config import print_config, NAMESPACE
-<<<<<<< HEAD
 from .retriever import retrieve, build_filter
 from .generator import generate_card_summaries
 from .needs import extract_needs, FALLBACK_RESPONSE
 from .candidates import multi_need_retrieve
-=======
-from .retriever import retrieve, build_filter
-from .generator import generate_card_summaries
-from .needs import extract_needs, FALLBACK_RESPONSE
-from .candidates import multi_need_retrieve
->>>>>>> b01f04a1cb8e0c484734ef6cdb5ac7af8df0b201
 
 # Admin DS import (added in section 3)
 from .datastore import ds, require_admin
@@ -68,7 +61,6 @@ def ask(payload: Ask):
         language=payload.language, free_only=payload.free_only
     )
 
-<<<<<<< HEAD
     story = (payload.query or "").strip()
     
     if not story:
@@ -129,67 +121,6 @@ def needs(payload: NeedRequest):
     response = dict(extracted)
     response["candidates"] = candidates
     return response
-=======
-    story = (payload.query or "").strip()
-    if not story:
-        print(">>> [main] Empty query provided.")
-        return {"results": [], "counts": {"retrieved": 0, "shown": 0}}
-
-    extracted = extract_needs(story)
-    needs = extracted.get("needs") if isinstance(extracted, dict) else []
-
-    retrieve_kwargs = {
-        "metadata_filters": filt,
-        "namespace": payload.namespace,
-    }
-
-    candidates = multi_need_retrieve(
-        story,
-        needs,
-        retrieve_fn=retrieve,
-        full_top_k=payload.top_k,
-        per_need_top_k=payload.top_k,
-        max_candidates=max(payload.top_k, payload.top_results),
-        retrieve_kwargs=retrieve_kwargs,
-    )
-
-    if not candidates:
-        print(">>> [main] No matches found after fanout search.")
-        response = {"results": [], "counts": {"retrieved": 0, "shown": 0}}
-        response["needs"] = extracted
-        return response
-
-    # Bound the number of cards we display by both top_results and top_k
-    shown = max(1, min(payload.top_results, payload.top_k, len(candidates)))
-    to_show = candidates[:shown]
-    print(f">>> [main] Displaying {shown} of {len(candidates)} retrieved results.")
-
-    # Generate per-card summaries for items we actually show
-    summaries = generate_card_summaries(story, to_show)
-    for r in to_show:
-        rid = (r.get("id") or (r.get("metadata") or {}).get("resource_id") or "")
-        r["model_summary"] = summaries.get(rid, "")
-
-    response = {"results": to_show, "counts": {"retrieved": len(candidates), "shown": shown}}
-    response["needs"] = extracted
-    return response
-
-
-@app.post("/needs")
-def needs(payload: NeedRequest):
-    story = (payload.user_story or "").strip()
-    print(f">>> [main] /needs called. Story length: {len(story)}")
-    if not story:
-        empty = dict(FALLBACK_RESPONSE)
-        empty["candidates"] = []
-        return empty
-
-    extracted = extract_needs(story)
-    candidates = multi_need_retrieve(story, extracted.get("needs"))
-    response = dict(extracted)
-    response["candidates"] = candidates
-    return response
->>>>>>> b01f04a1cb8e0c484734ef6cdb5ac7af8df0b201
 
 # ---------- Admin UI (section 3 will add the template and JS) ----------
 @app.get("/admin")
