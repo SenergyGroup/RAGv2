@@ -57,6 +57,14 @@ def _copy_hit(hit: Hit) -> Hit:
     copied["metadata"] = dict(metadata)
     return copied
 
+def _copy_hit(hit: Hit) -> Hit:
+    """Return a shallow copy of the hit with metadata normalized to a dict."""
+    copied: Hit = dict(hit)
+    metadata = copied.get("metadata") if isinstance(copied.get("metadata"), dict) else {}
+    copied["metadata"] = dict(metadata)
+    return copied
+
+
 def _add_hit(
     bucket: Dict[str, Dict[str, object]],
     hit: Hit,
@@ -115,7 +123,9 @@ def multi_need_retrieve(
     full_hits = retrieve_fn(story_query, top_k=full_top_k, **retrieve_opts)
 
     # Always run full story search
-    full_hits = retrieve_fn(story_query, top_k=full_top_k)
+    retrieve_opts = dict(retrieve_kwargs or {})
+
+    full_hits = retrieve_fn(story_query, top_k=full_top_k, **retrieve_opts)
     for hit in full_hits or []:
         if isinstance(hit, dict):
             _add_hit(buckets, hit)
@@ -154,6 +164,10 @@ def _finalize_candidates(
             matched_list = sorted(matched)
         else:
             matched_list = []
+<<<<<<< HEAD
+=======
+
+>>>>>>> b01f04a1cb8e0c484734ef6cdb5ac7af8df0b201
         hit = entry.get("hit") if isinstance(entry.get("hit"), dict) else {}
         candidate: Dict[str, object] = dict(hit)
         candidate.setdefault("metadata", {})

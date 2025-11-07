@@ -55,7 +55,11 @@ class MultiNeedRetrieveTests(unittest.TestCase):
         }
 
         def fake_retrieve(query, top_k=0, **kwargs):
+<<<<<<< HEAD
             calls.append(query, top_k, kwargs)
+=======
+            calls.append((query, top_k, kwargs))
+>>>>>>> b01f04a1cb8e0c484734ef6cdb5ac7af8df0b201
             return responses.get(query, [])
 
         needs = [
