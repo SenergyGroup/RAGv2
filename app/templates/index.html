@@ -4,124 +4,132 @@
   <meta charset="utf-8" />
   <title>Community Resources RAG</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Modern, Stripe-like typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="/static/style.css" rel="stylesheet" />
 </head>
 <body>
-  <!-- Gradient hero -->
-  <header class="hero">
-    <div class="shell">
-      <div class="brand">
-        <div class="logo-dot"></div>
-        <span>Community Resources</span>
+  <div class="page">
+    <header class="topbar shell">
+      <div class="topbar-brand">
+        <div class="logo-dot" aria-hidden="true"></div>
+        <div class="brand-copy">
+          <span class="brand-title">Codex Assist</span>
+          <span class="brand-tag">Community resource navigator</span>
+        </div>
       </div>
+      <nav class="top-actions" aria-label="Top navigation">
+        <a href="#">Settings</a>
+        <a href="#">Docs</a>
+      </nav>
+    </header>
+
+    <header class="hero shell">
+      <div class="hero-pill">What should we code next?</div>
       <h1 class="hero-title">
-        Black Hawk County <span class="accent">Resource navigator</span>
+        Black Hawk County <span class="accent">resource navigator</span>
       </h1>
       <p class="hero-sub">
         Ask for food, housing, legal aid and more—then view precise contact details and metadata.
       </p>
-    </div>
-  </header>
+    </header>
 
-  <main class="shell">
-    <section class="panel panel-glass">
-      <form id="ask-form" class="ask-form" aria-label="Search community resources">
-        <label class="label">Your question</label>
-        <div class="query-row">
-          <span class="icon search" aria-hidden="true"></span>
-          <textarea id="query" class="input input-lg" rows="2"
-            placeholder="e.g., Where can I get free groceries in San Jose this week?"></textarea>
+    <main class="shell">
+      <section class="panel panel-glass">
+        <form id="ask-form" class="ask-form" aria-label="Search community resources">
+          <label class="label" for="query">Your question</label>
+          <div class="query-row">
+            <span class="icon search" aria-hidden="true"></span>
+            <textarea id="query" class="input input-lg" rows="2"
+              placeholder="e.g., Where can I get free groceries in San Jose this week?"></textarea>
+          </div>
+
+          <div class="filters">
+            <div class="field">
+              <label class="label" for="city">City</label>
+              <input id="city" type="text" class="input" />
+            </div>
+            <div class="field">
+              <label class="label" for="county">County</label>
+              <input id="county" type="text" class="input" />
+            </div>
+            <div class="field">
+              <label class="label" for="zip_code">ZIP</label>
+              <input id="zip_code" type="text" class="input" />
+            </div>
+            <div class="field">
+              <label class="label" for="language">Language</label>
+              <input id="language" type="text" class="input" />
+            </div>
+            <div class="field">
+              <label class="label" for="free_only">Free only</label>
+              <label class="switch">
+                <input id="free_only" type="checkbox" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="field">
+              <label class="label" for="top_k">Top‑K (retrieve)</label>
+              <input id="top_k" type="number" min="1" max="50" value="8" class="input" />
+            </div>
+            <div class="field">
+              <label class="label" for="top_results">Top Results (display)</label>
+              <input id="top_results" type="number" min="1" max="20" value="5" class="input" />
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="submit-btn" type="submit" class="btn btn-primary">
+              <span class="btn-icon airplane" aria-hidden="true"></span>
+              Search
+            </button>
+            <button id="reset-btn" type="button" class="btn btn-soft">Reset</button>
+            <span id="status" class="status" role="status">Ready</span>
+          </div>
+
+          <div class="chips" aria-label="Examples">
+            <button type="button" class="chip ex">Food pantries</button>
+            <button type="button" class="chip ex">Free legal clinic</button>
+            <button type="button" class="chip ex">Shelter open tonight</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Results</h2>
+          <div class="split">
+            <span id="results-count" class="muted"></span>
+            <div class="mini-indicator" id="mini-indicator" hidden></div>
+          </div>
         </div>
 
-        <div class="filters">
-          <div class="field">
-            <label class="label">City</label>
-            <input id="city" type="text" class="input" />
-          </div>
-          <div class="field">
-            <label class="label">County</label>
-            <input id="county" type="text" class="input" />
-          </div>
-          <div class="field">
-            <label class="label">ZIP</label>
-            <input id="zip_code" type="text" class="input" />
-          </div>
-          <div class="field">
-            <label class="label">Language</label>
-            <input id="language" type="text" class="input" />
-          </div>
-          <div class="field">
-            <label class="label">Free only</label>
-            <label class="switch">
-              <input id="free_only" type="checkbox" />
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="field">
-            <label class="label">Top‑K (retrieve)</label>
-            <input id="top_k" type="number" min="1" max="50" value="8" class="input" />
-          </div>
-          <div class="field">
-            <label class="label">Top Results (display)</label>
-            <input id="top_results" type="number" min="1" max="20" value="5" class="input" />
-          </div>
+        <div id="action-plan" class="action-plan" hidden>
+          <h3>Action Plan</h3>
+          <div id="action-plan-body" class="action-plan-body"></div>
         </div>
 
-        <div class="actions">
-          <button id="submit-btn" type="submit" class="btn btn-primary">
-            <span class="btn-icon airplane"></span>
-            Search
-          </button>
-          <button id="reset-btn" type="button" class="btn btn-soft">Reset</button>
-          <span id="status" class="status">Ready</span>
+        <div id="results" class="results-grid" aria-live="polite"></div>
+        <div id="empty-state" class="empty-state" hidden>
+          <div class="empty-illustration" aria-hidden="true"></div>
+          <h3>No matching resources</h3>
+          <p>Try removing filters, changing the city/ZIP, or different keywords.</p>
         </div>
+      </section>
+    </main>
 
-        <div class="chips" aria-label="Examples">
-          <button type="button" class="chip ex">Food pantries</button>
-          <button type="button" class="chip ex">Free legal clinic</button>
-          <button type="button" class="chip ex">Shelter open tonight</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="panel">
-      <div class="panel-title">
-        <h2>Results</h2>
-        <div class="split">
-          <span id="results-count" class="muted"></span>
-          <div class="mini-indicator" id="mini-indicator" hidden></div>
-        </div>
-      </div>
-
-      <div id="action-plan" class="action-plan" hidden>
-        <h3>Action Plan</h3>
-        <div id="action-plan-body" class="action-plan-body"></div>
-      </div>
-
-      <div id="results" class="results-grid" aria-live="polite"></div>
-      <div id="empty-state" class="empty-state" hidden>
-        <div class="empty-illustration"></div>
-        <h3>No matching resources</h3>
-        <p>Try removing filters, changing the city/ZIP, or different keywords.</p>
-      </div>
-    </section>
-  </main>
-
-  <footer class="footer shell">
-    <span>Pinecone index: <strong>community-resources</strong></span>
-    <span>Built with ❤️ using OpenAI + Pinecone</span>
-  </footer>
+    <footer class="footer shell">
+      <span>Pinecone index: <strong>community-resources</strong></span>
+      <span>Built with ❤️ using OpenAI + Pinecone</span>
+    </footer>
+  </div>
 
   <div id="loading-overlay" class="loading-overlay" hidden aria-live="assertive" aria-busy="true">
     <div class="spinner" role="status" aria-label="Loading"></div>
     <p>Preparing your action plan…</p>
   </div>
 
-  <!-- Toast -->
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="/static/app.js"></script>

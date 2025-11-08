@@ -18,7 +18,7 @@ function addressFrom(md){
 }
 function telHref(phone){ if(!phone) return null; const d=String(phone).replace(/[^+\d]/g,""); return d?`tel:${d}`:null; }
 function mapsHref(addr){ if(!addr||addr==="Not provided") return null; return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`; }
-function icon(name, color="%23dfe6ff"){
+function icon(name, color="%2354618c"){
   const m={phone:`<svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}"><path d="M6.62 10.79a15.91 15.91 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 12.36 12.36 0 003.88.62 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.44a1 1 0 011 1 12.36 12.36 0 00.62 3.88 1 1 0 01-.24 1.01l-2.2 2.2z"/></svg>`,
            globe:`<svg class="ico" xmlns="http://www.w3.org/2000/svg" fill="${color}" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1010 10A10.011 10.011 0 0012 2zm1 17.93V20h-2v-.07A8.014 8.014 0 014.07 13H4v-2h.07A8.014 8.014 0 0111 4.07V4h2v.07A8.014 8.014 0 0119.93 11H20v2h-.07A8.014 8.014 0 0113 19.93z"/></svg>`,
            map:`<svg class="ico" xmlns="http://www.w3.org/2000/svg" fill="${color}" viewBox="0 0 24 24"><path d="M15 4l-6 2-6-2v16l6 2 6-2 6 2V6z"/></svg>`,
