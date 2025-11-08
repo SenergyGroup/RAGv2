@@ -91,6 +91,78 @@ function renderActionPlan(text){
   }
 }
 
+const LoadingOverlay = (()=>{
+  const overlay = q("loading-overlay");
+  const statusEl = q("loading-status");
+  const fillEl = q("loading-progress-fill");
+  const percentEl = q("loading-progress-label");
+  const barEl = overlay?.querySelector?.(".loading-progress") || null;
+  let current = 0;
+
+  function clamp(value){
+    if(Number.isNaN(value)) return 0;
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
+  function renderProgress(){
+    if(!fillEl) return;
+    const ratio = current / 100;
+    fillEl.style.transform = `scaleX(${ratio})`;
+    if(percentEl) percentEl.textContent = `${current}%`;
+    if(barEl) barEl.setAttribute("aria-valuenow", String(current));
+  }
+
+  function setProgress(value){
+    const next = clamp(value);
+    if(next <= current) return;
+    current = next;
+    renderProgress();
+  }
+
+  function reset(){
+    current = 0;
+    if(fillEl){
+      fillEl.style.transform = "scaleX(0)";
+    }
+    if(percentEl){
+      percentEl.textContent = "0%";
+    }
+    if(barEl){
+      barEl.setAttribute("aria-valuenow", "0");
+    }
+  }
+
+  function show(message){
+    if(!overlay) return;
+    overlay.hidden = false;
+    overlay.setAttribute("aria-hidden", "false");
+    overlay.setAttribute("aria-busy", "true");
+    reset();
+    if(statusEl) statusEl.textContent = message || "Preparing your action plan…";
+    setProgress(5);
+  }
+
+  function update(value, message){
+    if(!overlay) return;
+    if(message && statusEl) statusEl.textContent = message;
+    setProgress(value);
+  }
+
+  function hide(message){
+    if(!overlay) return;
+    if(message && statusEl) statusEl.textContent = message;
+    setProgress(100);
+    overlay.setAttribute("aria-busy", "false");
+    setTimeout(()=>{
+      overlay.hidden = true;
+      overlay.setAttribute("aria-hidden", "true");
+      reset();
+    }, 360);
+  }
+
+  return { show, update, hide };
+})();
+
 
 /* ==========================
    Rendering
@@ -130,9 +202,10 @@ function renderResourceCard(h){
   const webHref=website&&website!=="Not provided"?website:null;
   const detailText=val(md.text,"—");
   const summary = val(h.model_summary, "—");
+  const rid = (h.id ?? h.service_id ?? md.resource_id ?? md.id ?? "").toString();
 
   return `
-    <article class="result-card" data-id="${md.resource_id||''}">
+    <article class="result-card" data-id="${escapeHTML(rid)}">
       <div class="card-inner">
         <div class="card-head">
           <div>
@@ -219,7 +292,6 @@ function renderGroupedResults(grouped){
 async function onSubmit(e){
   e.preventDefault();
   const status=q("status"), btn=q("submit-btn");
-  const overlay = q("loading-overlay");
   const payload={
     query:q("query").value||"",
     city:q("city").value||null,
@@ -233,33 +305,47 @@ async function onSubmit(e){
 
   status.textContent="Searching…";
   btn.disabled=true; q("mini-indicator").hidden=false;
-  if(overlay) overlay.hidden=false;
+  LoadingOverlay.show("Analyzing your request…");
+  LoadingOverlay.update(20, "Analyzing needs and filters…");
   renderSkeleton(3);
 
+  let hadError=false;
   try{
-    const res=await fetch("/ask",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
-    if(!res.ok){ status.textContent=`Error ${res.status}`; renderEmpty(); showToast("Request failed."); return; }
+    const fetchPromise = fetch("/ask",{
+      method:"POST",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    LoadingOverlay.update(45, "Retrieving matching resources…");
+    const res=await fetchPromise;
+    if(!res.ok){ status.textContent=`Error ${res.status}`; renderEmpty(); showToast("Request failed."); hadError=true; return; }
+    LoadingOverlay.update(60, "Processing resource details…");
     const data=await res.json();
     const grouped=data.grouped_results||{};
-    const total=Object.values(grouped).reduce((acc,arr)=>acc + (Array.isArray(arr)?arr.length:0),0);
+    const entries=Object.entries(grouped).filter(([, arr])=>Array.isArray(arr)&&arr.length);
+    const filteredGrouped=Object.fromEntries(entries);
+    const total=entries.reduce((acc,[,arr])=>acc+arr.length,0);
     if(!total){
       renderEmpty();
     }else{
-      renderGroupedResults(grouped);
-      const needCount = Object.keys(grouped).length;
-      q("results-count").textContent = `${total} resources across ${needCount} need${needCount===1?"":"s"}`;
+      renderGroupedResults(filteredGrouped);
+      const needCount = entries.length;
+      q("results-count").textContent = `${total} resources across ${needCount} theme${needCount===1?"":"s"}`;
       q("empty-state").hidden=true;
     }
+    LoadingOverlay.update(82, "Summarizing resources…");
     renderActionPlan(data.action_plan||"");
+    LoadingOverlay.update(94, "Drafting action plan…");
     status.textContent=`Done. ${total} resource(s).`;
   }catch(err){
     console.error(err);
     status.textContent="Error";
     renderEmpty();
+    hadError=true;
   }finally{
     q("mini-indicator").hidden=true;
     btn.disabled=false;
-    if(overlay) overlay.hidden=true;
+    LoadingOverlay.hide(hadError ? "Something went wrong" : "Action plan ready");
   }
 }
 

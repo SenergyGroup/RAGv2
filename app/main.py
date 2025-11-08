@@ -92,6 +92,49 @@ def ask(payload: Ask):
         grouped_top_k=display_limit,
     )
 
+    def _deduplicate_grouped_results(grouped):
+        if not isinstance(grouped, dict):
+            return {}
+
+        theme_order = list(grouped.keys())
+        occurrences = {}
+
+        for idx, theme in enumerate(theme_order):
+            resources = grouped.get(theme) or []
+            for resource in resources:
+                rid = _resource_identifier(resource)
+                if not rid:
+                    continue
+                try:
+                    score = float(resource.get("score", 0.0))
+                except (TypeError, ValueError):
+                    score = 0.0
+                occurrences.setdefault(rid, []).append((score, idx, theme, resource))
+
+        best_theme_by_rid = {}
+        best_resource_by_rid = {}
+        for rid, entries in occurrences.items():
+            entries.sort(key=lambda item: (-item[0], item[1]))
+            _, _, theme, resource = entries[0]
+            best_theme_by_rid[rid] = theme
+            best_resource_by_rid[rid] = resource
+
+        deduped = {}
+        for theme in theme_order:
+            resources = []
+            for resource in grouped.get(theme) or []:
+                rid = _resource_identifier(resource)
+                if rid:
+                    if best_theme_by_rid.get(rid) != theme:
+                        continue
+                    resource = best_resource_by_rid.get(rid, resource)
+                resources.append(resource)
+            if resources:
+                deduped[theme] = resources
+        return deduped
+
+    grouped_results = _deduplicate_grouped_results(grouped_results)
+
     total_results = sum(len(v or []) for v in grouped_results.values())
     if total_results == 0:
         print(">>> [main] No matches found after fanout search.")
