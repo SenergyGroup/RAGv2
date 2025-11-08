@@ -9,8 +9,8 @@
   --muted: #687086;
   --line: #e1e5f2;
 
-  --brand: #6f4ef6;
-  --brand-2: #8a6ff8;
+  --brand: #000000; /* #6f4ef6 */
+  --brand-2: #8a6ff8; /* #8a6ff8 */
   --accent: #32c6ff;
 
   --radius-lg: 22px;
@@ -37,10 +37,10 @@ body::before {
   content: "";
   position: fixed;
   inset: -20%;
-  background:
-    radial-gradient(circle at 15% 18%, rgba(118, 88, 248, 0.18), transparent 62%),
+  background: #e6e8ec;
+    /* radial-gradient(circle at 15% 18%, rgba(118, 88, 248, 0.18), transparent 62%),
     radial-gradient(circle at 82% 12%, rgba(50, 198, 255, 0.18), transparent 68%),
-    radial-gradient(circle at 48% 88%, rgba(141, 120, 253, 0.14), transparent 70%);
+    radial-gradient(circle at 48% 88%, rgba(228, 163, 219, 0.14), transparent 70%); */
   filter: blur(0px);
   pointer-events: none;
   z-index: -1;
@@ -140,7 +140,7 @@ a { color: var(--brand); }
 }
 
 .hero-title .accent {
-  background: linear-gradient(120deg, var(--brand), var(--brand-2));
+  background: linear-gradient(120deg, #8363ff, var(--brand-2));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -205,6 +205,7 @@ main {
   font-size: 1rem;
   outline: none;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
 .input:focus {
@@ -299,6 +300,7 @@ main {
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border 0.15s ease;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
 .btn:hover {
@@ -311,22 +313,25 @@ main {
 }
 
 .btn-primary {
-  background: linear-gradient(120deg, var(--brand), var(--brand-2));
+  background: var(--brand); /* linear-gradient(120deg, var(--brand), var(--brand-2)); */
   border-color: transparent;
   color: #ffffff;
-  box-shadow: 0 16px 32px rgba(111, 78, 246, 0.25);
+  /* box-shadow: 0 16px 32px rgba(111, 78, 246, 0.25); */
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
 .btn-soft {
   background: rgba(111, 78, 246, 0.08);
   color: var(--brand);
   border-color: transparent;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
 .btn-icon.airplane {
   width: 18px;
   height: 18px;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%23ffffff" viewBox="0 0 24 24"><path d="M10.18 9L3 5.5 4 4l8 3 7-7 1 1-7 7 3 8-1.5 1L13 13.82l-4.82 4.82L7 18l4.82-4.82L10.18 9z"/></svg>') no-repeat center/contain;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="-19.04 0 75.804 75.804"><g transform="translate(-831.568 -384.448)"><path d="M833.068,460.252a1.5,1.5,0,0,1-1.061-2.561l33.557-33.56a2.53,2.53,0,0,0,0-3.564l-33.557-33.558a1.5,1.5,0,0,1,2.122-2.121l33.556,33.558a5.53,5.53,0,0,1,0,7.807l-33.557,33.56A1.5,1.5,0,0,1,833.068,460.252Z" fill="%23ffffff"/></g></svg>') no-repeat center/contain;  
+  /* background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%23ffffff" viewBox="0 0 24 24"><path d="M10.18 9L3 5.5 4 4l8 3 7-7 1 1-7 7 3 8-1.5 1L13 13.82l-4.82 4.82L7 18l4.82-4.82L10.18 9z"/></svg>') no-repeat center/contain; */
 }
 
 .status { color: var(--muted); }
@@ -348,6 +353,7 @@ main {
   font-weight: 600;
   font-size: 0.92rem;
   transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
 .chip:hover {

@@ -291,22 +291,23 @@ function renderGroupedResults(grouped){
    ========================== */
 async function onSubmit(e){
   e.preventDefault();
-  const status=q("status"), btn=q("submit-btn");
+  const status=q("status"), btn=q("submit-btn"), resultsPanel = q("results-panel");
   const payload={
     query:q("query").value||"",
-    city:q("city").value||null,
-    county:q("county").value||null,
-    zip_code:q("zip_code").value||null,
-    language:q("language").value||null,
-    free_only:q("free_only").checked||null,
-    top_k:Number(q("top_k").value||8),
-    top_results:Number(q("top_results").value||5)
+    city: q("city") ? q("city").value : null,
+    county: q("county") ? q("county").value : null,
+    zip_code: q("zip_code") ? q("zip_code").value : null,
+    language: q("language") ? q("language").value : null,
+    free_only: q("free_only") ? q("free_only").checked : null,
+    top_k: q("top_k") ? Number(q("top_k").value) : 8,
+    top_results: q("top_results") ? Number(q("top_results").value) : 5
   };
 
   status.textContent="Searching…";
   btn.disabled=true; q("mini-indicator").hidden=false;
   LoadingOverlay.show("Analyzing your request…");
   LoadingOverlay.update(20, "Analyzing needs and filters…");
+  resultsPanel.hidden = false;
   renderSkeleton(3);
 
   let hadError=false;
@@ -353,6 +354,7 @@ function onReset(){
   q("ask-form").reset();
   q("query").value=""; q("results").innerHTML=""; q("results-count").textContent="";
   q("empty-state").hidden=true; q("status").textContent="Ready";
+  q("results-panel").hidden = true;
   renderActionPlan("");
 }
 function onExampleClick(e){ if(!e.target.classList.contains("ex")) return; q("query").value=e.target.textContent.trim(); q("query").focus(); }

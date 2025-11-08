@@ -11,27 +11,12 @@
 </head>
 <body>
   <div class="page">
-    <header class="topbar shell">
-      <div class="topbar-brand">
-        <div class="logo-dot" aria-hidden="true"></div>
-        <div class="brand-copy">
-          <span class="brand-title">Codex Assist</span>
-          <span class="brand-tag">Community resource navigator</span>
-        </div>
-      </div>
-      <nav class="top-actions" aria-label="Top navigation">
-        <a href="#">Settings</a>
-        <a href="#">Docs</a>
-      </nav>
-    </header>
-
     <header class="hero shell">
-      <div class="hero-pill">What should we code next?</div>
       <h1 class="hero-title">
-        Black Hawk County <span class="accent">resource navigator</span>
+        Black Hawk County <span class="accent">Resource Navigator</span>
       </h1>
       <p class="hero-sub">
-        Ask for food, housing, legal aid and more—then view precise contact details and metadata.
+        Ask for food, housing, legal aid and more. The resource navigator is here to help connect you with local resources.
       </p>
     </header>
 
@@ -44,6 +29,8 @@
             <textarea id="query" class="input input-lg" rows="2"
               placeholder="e.g., Where can I get free groceries in San Jose this week?"></textarea>
           </div>
+
+          <!-- ## Filters
 
           <div class="filters">
             <div class="field">
@@ -78,6 +65,7 @@
               <input id="top_results" type="number" min="1" max="20" value="5" class="input" />
             </div>
           </div>
+          -->
 
           <div class="actions">
             <button id="submit-btn" type="submit" class="btn btn-primary">
@@ -85,7 +73,7 @@
               Search
             </button>
             <button id="reset-btn" type="button" class="btn btn-soft">Reset</button>
-            <span id="status" class="status" role="status">Ready</span>
+            <span id="status" class="status">Ready</span>
           </div>
 
           <div class="chips" aria-label="Examples">
@@ -96,7 +84,7 @@
         </form>
       </section>
 
-      <section class="panel">
+      <section id="results-panel" class="panel" hidden>
         <div class="panel-title">
           <h2>Results</h2>
           <div class="split">
@@ -120,7 +108,6 @@
     </main>
 
     <footer class="footer shell">
-      <span>Pinecone index: <strong>community-resources</strong></span>
       <span>Built with ❤️ using OpenAI + Pinecone</span>
     </footer>
   </div>

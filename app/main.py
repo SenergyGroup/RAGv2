@@ -48,6 +48,20 @@ class Ask(BaseModel):
 class NeedRequest(BaseModel):
     user_story: str
 
+def _resource_identifier(resource: dict) -> str:
+    metadata = resource.get("metadata") or {}
+    rid = (
+        resource.get("id")
+        or metadata.get("resource_id")
+        or resource.get("service_id")
+    )
+    if rid:
+        rid_str = str(rid)
+        if not resource.get("id"):
+            resource["id"] = rid_str
+        return rid_str
+    return ""
+
 @app.get("/healthz")
 def healthz():
     print(">>> [main] /healthz called.")
@@ -146,19 +160,7 @@ def ask(payload: Ask):
         }
         return response
 
-    def _resource_identifier(resource: dict) -> str:
-        metadata = resource.get("metadata") or {}
-        rid = (
-            resource.get("id")
-            or metadata.get("resource_id")
-            or resource.get("service_id")
-        )
-        if rid:
-            rid_str = str(rid)
-            if not resource.get("id"):
-                resource["id"] = rid_str
-            return rid_str
-        return ""
+    
 
     unique_resources = []
     seen_ids = set()
