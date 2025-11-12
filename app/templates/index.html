@@ -36,7 +36,7 @@
     </header>
 
     <main class="shell">
-      <section class="panel panel-glass">
+      <section id="prompt-panel" class="panel panel-glass prompt-panel">
         <form id="ask-form" class="ask-form" aria-label="Search community resources">
           <label class="label" for="query">Your question</label>
           <div class="query-row">
@@ -96,6 +96,9 @@
         </form>
       </section>
 
+      <div id="prompt-spacer" aria-hidden="true"></div>
+
+      <div id="results-anchor"></div>
       <section class="panel">
         <div class="panel-title">
           <h2>Results</h2>
@@ -110,7 +113,22 @@
           <div id="action-plan-body" class="action-plan-body"></div>
         </div>
 
-        <div id="results" class="results-grid" aria-live="polite"></div>
+        <div id="results" class="results-area">
+          <div id="themes-summary" class="themes-summary" hidden>
+            <span class="themes-label">Themes identified</span>
+            <div id="themes-list" class="themes-list" role="list"></div>
+          </div>
+
+          <div id="results-carousel" class="results-carousel" hidden>
+            <button id="carousel-prev" type="button" class="carousel-nav" aria-label="Previous result"></button>
+            <div class="carousel-viewport">
+              <div id="carousel-track" class="carousel-track" aria-live="polite"></div>
+            </div>
+            <button id="carousel-next" type="button" class="carousel-nav" aria-label="Next result"></button>
+          </div>
+
+          <div id="carousel-meta" class="carousel-meta" hidden></div>
+        </div>
         <div id="empty-state" class="empty-state" hidden>
           <div class="empty-illustration" aria-hidden="true"></div>
           <h3>No matching resources</h3>

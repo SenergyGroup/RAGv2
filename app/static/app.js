@@ -35,21 +35,192 @@ function slugToTitle(slug){
 
 const resourceIndex = {};
 
+const carouselState = {
+  slides: [],
+  themes: [],
+  currentSlide: 0
+};
+
+let carouselControlsBound = false;
+
+function resourceId(h){
+  const md = h?.metadata || {};
+  const identifier = h?.id ?? h?.service_id ?? md.resource_id ?? md.id ?? "";
+  return identifier !== undefined && identifier !== null ? String(identifier) : "";
+}
+
+function setPromptOverlay(active){
+  document.body.classList.toggle("prompt-overlay-active", !!active);
+  syncPromptSpacer();
+}
+
+function syncPromptSpacer(){
+  const panel = q("prompt-panel");
+  const spacer = q("prompt-spacer");
+  if(!panel || !spacer) return;
+  if(document.body.classList.contains("prompt-overlay-active")){
+    spacer.style.height = `${panel.offsetHeight + 24}px`;
+  }else{
+    spacer.style.height = "0px";
+  }
+}
+
+function scrollToResults(){
+  const anchor = q("results-anchor") || q("results");
+  if(!anchor) return;
+  anchor.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function clearCarousel(){
+  const track = q("carousel-track");
+  if(track){
+    track.innerHTML = "";
+    track.style.transform = "translateX(0%)";
+  }
+  const meta = q("carousel-meta");
+  if(meta){
+    meta.textContent = "";
+    meta.hidden = true;
+  }
+  const themesSummary = q("themes-summary");
+  if(themesSummary) themesSummary.hidden = true;
+  const themesList = q("themes-list");
+  if(themesList) themesList.innerHTML = "";
+  const carousel = q("results-carousel");
+  if(carousel) carousel.hidden = true;
+  const prev = q("carousel-prev");
+  const next = q("carousel-next");
+  if(prev) prev.disabled = true;
+  if(next) next.disabled = true;
+  carouselState.slides = [];
+  carouselState.themes = [];
+  carouselState.currentSlide = 0;
+}
+
+function ensureCarouselControls(){
+  if(carouselControlsBound) return;
+  const prev = q("carousel-prev");
+  const next = q("carousel-next");
+  const themeList = q("themes-list");
+  prev?.addEventListener("click", ()=> moveSlide(-1));
+  next?.addEventListener("click", ()=> moveSlide(1));
+  themeList?.addEventListener("click", (event)=>{
+    const target = event.target.closest?.(".theme-chip");
+    if(!target) return;
+    const idx = Number(target.getAttribute("data-theme-index"));
+    if(Number.isNaN(idx)) return;
+    setActiveTheme(idx, { scroll: true });
+  });
+  carouselControlsBound = true;
+}
+
+function moveSlide(delta){
+  if(!carouselState.slides.length) return;
+  const nextIndex = carouselState.currentSlide + delta;
+  setActiveSlide(nextIndex, { scroll: false });
+}
+
+function setActiveTheme(themeIndex, options = {}){
+  const theme = carouselState.themes[themeIndex];
+  if(!theme) return;
+  const target = theme.start ?? 0;
+  setActiveSlide(target, options);
+}
+
+function setActiveSlide(index, options = {}){
+  if(!carouselState.slides.length) return;
+  const clamped = Math.max(0, Math.min(index, carouselState.slides.length - 1));
+  carouselState.currentSlide = clamped;
+  updateCarouselUI();
+  if(options.scroll){
+    scrollToResults();
+  }
+  if(options.highlight){
+    highlightSlide(clamped);
+  }
+}
+
+function highlightSlide(slideIndex){
+  const slideEl = document.querySelector(`.carousel-slide[data-slide-index="${slideIndex}"] .result-card`);
+  if(!slideEl) return;
+  slideEl.classList.add("highlighted");
+  setTimeout(()=> slideEl.classList.remove("highlighted"), 1600);
+}
+
+function updateCarouselUI(){
+  const track = q("carousel-track");
+  const slides = track?.querySelectorAll?.(".carousel-slide") || [];
+  if(!slides.length) return;
+  const { currentSlide, themes } = carouselState;
+  const offset = currentSlide * -100;
+  if(track){
+    track.style.transform = `translateX(${offset}%)`;
+  }
+
+  slides.forEach((slide, idx)=>{
+    const isActive = idx === currentSlide;
+    slide.classList.toggle("is-active", isActive);
+    slide.setAttribute("aria-hidden", isActive ? "false" : "true");
+  });
+
+  const prev = q("carousel-prev");
+  const next = q("carousel-next");
+  if(prev) prev.disabled = currentSlide === 0;
+  if(next) next.disabled = currentSlide === carouselState.slides.length - 1;
+
+  const activeSlide = carouselState.slides[currentSlide];
+  if(!activeSlide) return;
+  const activeThemeIndex = activeSlide.themeIndex;
+  carouselState.currentSlide = currentSlide;
+
+  const themeList = q("themes-list");
+  if(themeList){
+    themeList.querySelectorAll(".theme-chip").forEach(chip=>{
+      const idx = Number(chip.getAttribute("data-theme-index"));
+      const isActive = idx === activeThemeIndex;
+      chip.classList.toggle("active", isActive);
+      chip.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  const theme = themes[activeThemeIndex];
+  if(!theme) return;
+  const meta = q("carousel-meta");
+  if(meta){
+    const withinTheme = currentSlide - (theme.start ?? 0) + 1;
+    meta.hidden = false;
+    meta.textContent = `${theme.label}: result ${withinTheme} of ${theme.count} • ${currentSlide + 1} of ${carouselState.slides.length} overall`;
+  }
+}
+
 function resetResourceIndex(){
   Object.keys(resourceIndex).forEach(key=>{ delete resourceIndex[key]; });
 }
 
 function updateResourceIndex(){
   resetResourceIndex();
-  document.querySelectorAll(".result-card[data-id]").forEach(card=>{
+  document.querySelectorAll(".carousel-slide").forEach(slide=>{
+    const card = slide.querySelector(".result-card[data-id]");
+    if(!card) return;
     const id = card.getAttribute("data-id");
     if(!id) return;
     const title = card.querySelector(".card-title");
+    const slideIndex = Number(slide.getAttribute("data-slide-index"));
+    const themeIndex = Number(slide.getAttribute("data-theme-index"));
     resourceIndex[id] = {
       name: (title?.textContent || `Resource ${id}`).trim(),
-      element: card
+      element: slide,
+      slideIndex: Number.isNaN(slideIndex) ? 0 : slideIndex,
+      themeIndex: Number.isNaN(themeIndex) ? 0 : themeIndex
     };
   });
+}
+
+function focusResourceById(id){
+  const info = resourceIndex[id];
+  if(!info) return;
+  const slideIndex = info.slideIndex ?? 0;
+  setActiveSlide(slideIndex, { scroll: true, highlight: true });
 }
 
 function escapeHTML(str=""){
@@ -61,11 +232,7 @@ function attachCitationHandlers(){
     btn.addEventListener("click", ()=>{
       const id = btn.getAttribute("data-id");
       if(!id) return;
-      const info = resourceIndex[id];
-      if(!info || !info.element) return;
-      info.element.scrollIntoView({behavior:"smooth", block:"center"});
-      info.element.classList.add("highlighted");
-      setTimeout(()=>info.element.classList.remove("highlighted"), 1600);
+      focusResourceById(id);
     });
   });
 }
@@ -170,14 +337,46 @@ const LoadingOverlay = (()=>{
 function renderSkeleton(n=3){
   renderActionPlan("");
   resetResourceIndex();
-  q("results").innerHTML = Array.from({length:n}).map(()=>`<div class="result-skeleton skeleton"></div>`).join("");
+  setPromptOverlay(true);
+  const emptyState = q("empty-state");
+  if(emptyState) emptyState.hidden = true;
+  const themesSummary = q("themes-summary");
+  if(themesSummary) themesSummary.hidden = true;
+  const themeList = q("themes-list");
+  if(themeList) themeList.innerHTML = "";
+  const track = q("carousel-track");
+  if(track){
+    track.innerHTML = Array.from({length:Math.max(1,n)}).map((_, idx)=>`
+      <div class="carousel-slide skeleton-slide" data-slide-index="${idx}" aria-hidden="${idx===0?"false":"true"}">
+        <div class="result-skeleton skeleton"></div>
+      </div>
+    `).join("");
+    track.style.transform = "translateX(0%)";
+  }
+  const carousel = q("results-carousel");
+  if(carousel) carousel.hidden = false;
+  const meta = q("carousel-meta");
+  if(meta){
+    meta.hidden = false;
+    meta.textContent = "Loading results…";
+  }
+  const prev = q("carousel-prev");
+  const next = q("carousel-next");
+  if(prev) prev.disabled = true;
+  if(next) next.disabled = true;
+  carouselState.slides = [];
+  carouselState.themes = [];
+  carouselState.currentSlide = 0;
+  syncPromptSpacer();
 }
 function renderEmpty(){
-  q("results").innerHTML="";
-  q("empty-state").hidden=false;
+  clearCarousel();
+  const emptyState = q("empty-state");
+  if(emptyState) emptyState.hidden = false;
   q("results-count").textContent="";
   renderActionPlan("");
   resetResourceIndex();
+  setPromptOverlay(true);
 }
 
 function renderResourceCard(h){
@@ -202,7 +401,7 @@ function renderResourceCard(h){
   const webHref=website&&website!=="Not provided"?website:null;
   const detailText=val(md.text,"—");
   const summary = val(h.model_summary, "—");
-  const rid = (h.id ?? h.service_id ?? md.resource_id ?? md.id ?? "").toString();
+  const rid = resourceId(h);
 
   return `
     <article class="result-card" data-id="${escapeHTML(rid)}">
@@ -265,25 +464,72 @@ function attachCopyHandlers(){
 }
 
 function renderGroupedResults(grouped){
-  const results=q("results");
-  q("empty-state").hidden=true;
+  const emptyState = q("empty-state");
+  if(emptyState) emptyState.hidden = true;
+  setPromptOverlay(true);
+  ensureCarouselControls();
 
-  const sections = Object.entries(grouped||{}).map(([slug, hits])=>{
-    const cards = Array.isArray(hits) && hits.length
-      ? hits.map(renderResourceCard).join("")
-      : `<p class="muted no-results-msg">No resources matched yet.</p>`;
-    const heading = slug==="general" ? "Recommended Resources" : slugToTitle(slug);
-    return `
-      <section class="need-section">
-        <h3 class="need-heading">${heading}</h3>
-        <div class="need-results">${cards}</div>
-      </section>
-    `;
+  const entries = Object.entries(grouped || {});
+  const track = q("carousel-track");
+  const carousel = q("results-carousel");
+  const themesSummary = q("themes-summary");
+  const themeList = q("themes-list");
+  const meta = q("carousel-meta");
+
+  let slideOffset = 0;
+  const themes = [];
+  const slides = [];
+
+  entries.forEach(([slug, hits])=>{
+    const validHits = Array.isArray(hits) ? hits : [];
+    if(!validHits.length) return;
+    const label = slug === "general" ? "Recommended Resources" : slugToTitle(slug);
+    const themeIndex = themes.length;
+    themes.push({ slug, label, count: validHits.length, start: slideOffset });
+    validHits.forEach(hit=>{
+      slides.push({ html: renderResourceCard(hit), themeIndex });
+    });
+    slideOffset += validHits.length;
   });
 
-  results.innerHTML = sections.join("");
+  if(!slides.length){
+    renderEmpty();
+    return;
+  }
+
+  carouselState.themes = themes.map((theme, idx)=>({ ...theme, index: idx }));
+  carouselState.slides = slides.map((slide, idx)=>({ ...slide, slideIndex: idx }));
+  carouselState.currentSlide = 0;
+
+  if(themeList){
+    themeList.innerHTML = carouselState.themes.map(theme=>`
+      <button type="button" class="theme-chip" role="listitem" data-theme-index="${theme.index}" aria-pressed="${theme.index===0?"true":"false"}">
+        ${escapeHTML(theme.label)}<span class="count">${theme.count}</span>
+      </button>
+    `).join("");
+  }
+
+  if(themesSummary) themesSummary.hidden = false;
+
+  if(track){
+    track.innerHTML = carouselState.slides.map(slide=>`
+      <div class="carousel-slide" data-slide-index="${slide.slideIndex}" data-theme-index="${slide.themeIndex}" aria-hidden="true">
+        ${slide.html}
+      </div>
+    `).join("");
+    track.style.transform = "translateX(0%)";
+  }
+
+  if(carousel) carousel.hidden = false;
+  if(meta){
+    meta.hidden = false;
+    meta.textContent = "";
+  }
+
   attachCopyHandlers();
   updateResourceIndex();
+  setActiveSlide(0, { scroll: false });
+  syncPromptSpacer();
 }
 
 /* ==========================
@@ -351,12 +597,22 @@ async function onSubmit(e){
 
 function onReset(){
   q("ask-form").reset();
-  q("query").value=""; q("results").innerHTML=""; q("results-count").textContent="";
-  q("empty-state").hidden=true; q("status").textContent="Ready";
+  q("query").value="";
+  q("results-count").textContent="";
+  q("status").textContent="Ready";
+  clearCarousel();
+  const emptyState = q("empty-state");
+  if(emptyState) emptyState.hidden = true;
   renderActionPlan("");
+  resetResourceIndex();
+  setPromptOverlay(false);
+  syncPromptSpacer();
 }
 function onExampleClick(e){ if(!e.target.classList.contains("ex")) return; q("query").value=e.target.textContent.trim(); q("query").focus(); }
 
 document.getElementById("ask-form").addEventListener("submit", onSubmit);
 document.getElementById("reset-btn").addEventListener("click", onReset);
 document.querySelector(".chips").addEventListener("click", onExampleClick);
+ensureCarouselControls();
+window.addEventListener("resize", ()=> syncPromptSpacer());
+syncPromptSpacer();
